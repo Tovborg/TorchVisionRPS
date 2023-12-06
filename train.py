@@ -7,8 +7,17 @@ from torchvision import transforms, datasets
 from torch.utils.data import DataLoader
 from torch import optim
 from torchvision import models
+import argparse
 
+parser = argparse.ArgumentParser(description='Rock Paper Scissors argument parser')
+parser.add_argument('--n_samples', type=int, default=100, help='Number of samples to collect for each class')
+parser.add_argument('--n_collections', type=int, default=1, help="How many times to collect data for each class, "
+                                                                 "runs 'collect_data' n_collections times "
+                                                                 "useful for collecting data for multiple locations")
 
+args = parser.parse_args()
+
+number_collections = 1
 def collect_data(n_samples):
 
     cap = cv2.VideoCapture(0)
@@ -21,6 +30,7 @@ def collect_data(n_samples):
 
     current_class = 0
     image_counter = 0
+    trigger = False
 
     while True:
 
@@ -45,39 +55,46 @@ def collect_data(n_samples):
         text_y = text_size[1] + 10
         cv2.putText(frame, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
 
-        k = cv2.waitKey(1)
-        if k == ord('c'):
-            if current_class < len(classes):
-                print(f"Starting to collect data for class {current_class}")
+        if trigger is not True:
+            key = cv2.waitKey(1)
+            if key == ord('c'):
+                trigger = True
+                os.makedirs("data", exist_ok=True)
 
-                # Create a directory for the class if it doesn't exist
-                os.makedirs(f"data/{classes[current_class]}", exist_ok=True)
-                save_path = f"data/{classes[current_class]}/"
+        if trigger is True:
+            os.makedirs(f"data/{classes[current_class]}", exist_ok=True)
 
-                while image_counter < n_samples:
-                    time.sleep(0.5)
-                    ret, frame = cap.read()
+            ret, frame = cap.read()
+            roi = frame[rect_y:rect_y + rect_height, rect_x:rect_x + rect_width]
+            cv2.imwrite(f"data/{classes[current_class]}/{classes[current_class]}-{image_counter}-{number_collections}.png", roi)
 
-                    roi = frame[rect_y:rect_y + rect_height, rect_x:rect_x + rect_width]
-                    cv2.imshow("Collecting data", roi)
-                    cv2.imwrite(save_path + f"{classes[current_class]}-{image_counter}.png", roi)
-                    image_counter += 1
-                current_class += 1
+            image_counter += 1
+            cv2.putText(frame, f"Collected {image_counter} images", (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
+            cv2.rectangle(frame, (rect_x, rect_y), (rect_x + rect_width, rect_y + rect_height), (0, 0, 255), 2)
+
+            if image_counter == n_samples:
+                print(f"Collected {n_samples} samples for class {classes[current_class]}")
                 image_counter = 0
-                print(f"Done collecting data for class {current_class - 1}")
-            else:
-                print("Done collecting data.")
-                break
+                current_class += 1
+                trigger = False
 
         cv2.imshow("Collecting data", frame)
 
         key = cv2.waitKey(1)
         # Exit when 'ESC' is pressed
         if key == 27:
+
             break
 
 
-collect_data(100)
+if args.n_collections > 1:
+    collect_data(args.n_samples)
+    for i in range(args.n_collections - 1):
+        print(f"Collecting data for the {i+2} time")
+        collect_data(args.n_samples)
+        number_collections += 1
+else:
+    collect_data(args.n_samples)
 
 # Path: train.py
 print("Starting training...")

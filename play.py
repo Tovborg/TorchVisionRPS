@@ -15,7 +15,7 @@ while rounds <= 0:
     rounds: int = int(input("Enter number of rounds: "))
 
 
-def computer_move():
+def generate_computer_move():
     moves = ["rock", "paper", "scissors"]
     return random.choice(moves)
 
@@ -56,24 +56,53 @@ def player_move_from_image(image, model_path):
 
 def determine_winner(move_computer, move_player):
 
-    combinations = {
-        "rock": "scissors",
-        "paper": "rock",
-        "scissors": "paper"
-    }
-
-    if move_player == combinations[move_computer]:
-        return "computer"
-    elif move_computer == combinations[move_computer]:
-        return "player"
-    else:
+    if move_computer == move_player:
         return "tie"
+    elif move_computer == "rock":
+        if move_player == "paper":
+            return "player"
+        elif move_player == "scissors":
+            return "computer"
+    elif move_computer == "paper":
+        if move_player == "rock":
+            return "computer"
+        elif move_player == "scissors":
+            return "player"
+    elif move_computer == "scissors":
+        if move_player == "rock":
+            return "player"
+        elif move_player == "paper":
+            return "computer"
+    return "Error"
+
+def determine_game_winner(player_score, computer_score):
+    if player_score == computer_score:
+        return "tie"
+    winner = "computer" if computer_score > player_score else "player"
+    return winner
+
+def create_bold_text(text, font_scale, thickness, text_x, text_y, color, frame):
+
+    rect_width, rect_height = 300, 300
+    text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
+    text_x = text_x + int((rect_width - text_size[0]) / 2)
+    text_y = text_y - 10  # Adjust vertical position above the rectangle
+    cv2.putText(frame, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, thickness, cv2.LINE_AA)
+
+
 
 
 def play():
     player_score = 0
     computer_score = 0
     round_number = 1
+
+    player_move: str = ""
+    move_computer: str = ""
+
+    round_winner: str = ""
+    game_finished: bool = False
+    game_started: bool = False
 
     cap = cv2.VideoCapture(0)
 
@@ -92,30 +121,14 @@ def play():
         rect_x, rect_y = int((width - rect_width) / 2) + 300, int((height - rect_height) / 2)  # Adjusted rect_x
 
         cv2.rectangle(frame, (rect_x, rect_y), (rect_x + rect_width, rect_y + rect_height), (0, 255, 0), 2)
-
-        text = "Player Move"
-        text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
-        text_x = rect_x + int((rect_width - text_size[0]) / 2)
-        text_y = rect_y - 10  # Adjust vertical position above the rectangle
-
-        cv2.putText(frame, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
+        create_bold_text("Player Move", 0.7, 2, rect_x, rect_y, (255, 255, 255), frame)
 
         # Computer move rectangle and text
-        cv2.rectangle(frame, (rect_x, rect_y), (rect_x + rect_width, rect_y + rect_height), (0, 255, 0), 2)
         rect_x, rect_y = int((width - rect_width) / 2) - 300, int((height - rect_height) / 2)  # Adjusted rect_x
 
         cv2.rectangle(frame, (rect_x, rect_y), (rect_x + rect_width, rect_y + rect_height), (0, 255, 0), 2)
-
-        text = "Computer Move"
-        text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
-        text_x = rect_x + int((rect_width - text_size[0]) / 2)
-        text_y = rect_y - 10  # Adjust vertical position above the rectangle
-
-        cv2.putText(frame, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
-
+        create_bold_text("Computer Move", 0.7, 2, rect_x, rect_y, (255, 255, 255), frame)
         # Round text
-
-
         if round_number < rounds:
             text = f"Press 'c' to lock in your move"
         else:
@@ -127,8 +140,6 @@ def play():
         text_y = text_size[1] + 10
         cv2.putText(frame, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
 
-
-
         text = f"Round {round_number} of {rounds}"
         text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
         text_x = 10
@@ -137,32 +148,77 @@ def play():
 
         play_key = cv2.waitKey(1)
         if play_key == ord('c'):
+            if not game_started:
+                game_started = True
+
             # Player logic
             if round_number < rounds:
-                round_number = round_number + 1 if round_number > 0 else round_number
-                print(f"Starting round {round_number}")
-
-                # Capture player move image
+                print("--------------------")
                 rect_x, rect_y = int((width - rect_width) / 2) + 300, int((height - rect_height) / 2)  # Adjusted rect_x
 
-                time.sleep(0.5)
+                # Read player's move from rectangle
                 ret, frame = cap.read()
                 roi = frame[rect_y:rect_y + rect_height, rect_x:rect_x + rect_width]
                 player_move = player_move_from_image(roi, "model.pth")
+
+                if player_move == "nothing":
+                    player_move = "rock"
                 print(f"Player move: {player_move}")
+                # Put image in player move rectangle
+
+                round_number = round_number + 1 if round_number > 0 else round_number
+
+                # Computer logic
+                computer_move = generate_computer_move()
+                print(f"Computer move: {computer_move}")
+                print("\n")
+                # Determine winner
+                winner = determine_winner(computer_move, player_move)
+                round_winner = winner
+                if winner == "computer":
+                    computer_score += 1
+                elif winner == "player":
+                    player_score += 1
+                else:
+                    pass
+                print("Round winner: ", winner)
+
 
             else:
                 # Determine winner
-                print("Done playing, determining winner...")
-                if player_score > computer_score:
-                    print("Player wins!")
-                elif computer_score > player_score:
-                    print("Computer wins!")
-                else:
-                    print("It's a tie!")
+                game_finished = True
+
+        # Put test text on screen
+        if game_started:
+
+            computer_move_image = cv2.imread(f"images/{computer_move.lower()}.jpeg")
+            computer_move_image = cv2.resize(computer_move_image, (300, 300))
+            rect_x, rect_y = int((width - rect_width) / 2) - 300, int((height - rect_height) / 2)
+            frame[rect_y:rect_y + rect_height, rect_x:rect_x + rect_width] = computer_move_image
+
+            text = f"Player: {player_score} | Computer: {computer_score}"
+            text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
+            text_x = int((width - text_size[0]) / 2)
+            text_y = text_size[1] + 20
+            cv2.putText(frame, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
+            if game_finished:
+                winner = determine_game_winner(player_score, computer_score)
+                text = f"Game winner: {winner}"
+                text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
+                text_x = int((width - text_size[0]) / 2)
+                text_y = text_size[1] + 50
+                cv2.putText(frame, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
+            else:
+                text = f"Round winner: {round_winner}"
+                text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
+                text_x = int((width - text_size[0]) / 2)
+                text_y = text_size[1] + 50
+                cv2.putText(frame, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
+
+
+
 
         cv2.imshow("Rock Paper Scissors", frame)
-
         key = cv2.waitKey(1)
         if key == 27:
             print("Thanks for playing!")
