@@ -18,8 +18,9 @@ parser.add_argument('--n_collections', type=int, default=1, help="How many times
 args = parser.parse_args()
 
 number_collections = 1
-def collect_data(n_samples):
 
+
+def collect_data(n_samples: int) -> None:
     cap = cv2.VideoCapture(0)
 
     if not cap.isOpened():

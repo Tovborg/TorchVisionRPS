@@ -15,12 +15,12 @@ while rounds <= 0:
     rounds: int = int(input("Enter number of rounds: "))
 
 
-def generate_computer_move():
+def generate_computer_move() -> str:
     moves = ["rock", "paper", "scissors"]
     return random.choice(moves)
 
 
-def player_move_from_image(image, model_path):
+def player_move_from_image(image, model_path) -> str:
     # Convert numpy array to PIL Image
     image = Image.fromarray(image)
     model = models.resnet18(pretrained=False)
@@ -54,7 +54,7 @@ def player_move_from_image(image, model_path):
     return predicted_label
 
 
-def determine_winner(move_computer, move_player):
+def determine_winner(move_computer, move_player) -> str:
 
     if move_computer == move_player:
         return "tie"
@@ -75,14 +75,15 @@ def determine_winner(move_computer, move_player):
             return "computer"
     return "Error"
 
-def determine_game_winner(player_score, computer_score):
+
+def determine_game_winner(player_score, computer_score) -> str:
     if player_score == computer_score:
         return "tie"
     winner = "computer" if computer_score > player_score else "player"
     return winner
 
-def create_bold_text(text, font_scale, thickness, text_x, text_y, color, frame):
 
+def create_bold_text(text, font_scale, thickness, text_x, text_y, color, frame) -> None:
     rect_width, rect_height = 300, 300
     text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
     text_x = text_x + int((rect_width - text_size[0]) / 2)
@@ -90,15 +91,10 @@ def create_bold_text(text, font_scale, thickness, text_x, text_y, color, frame):
     cv2.putText(frame, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, thickness, cv2.LINE_AA)
 
 
-
-
-def play():
-    player_score = 0
-    computer_score = 0
-    round_number = 1
-
-    player_move: str = ""
-    move_computer: str = ""
+def play() -> None:
+    player_score: int = 0
+    computer_score: int = 0
+    round_number: int = 1
 
     round_winner: str = ""
     game_finished: bool = False
@@ -113,60 +109,67 @@ def play():
     while True:
         ret, frame = cap.read()
 
-        height, width, channels = frame.shape
+        height, width, _ = frame.shape
 
         rect_width, rect_height = 300, 300
 
         # Player move rectangle and text
-        rect_x, rect_y = int((width - rect_width) / 2) + 300, int((height - rect_height) / 2)  # Adjusted rect_x
+        player_rect_x, player_rect_y = int((width - rect_width) / 2) + 300, int((height - rect_height) / 2)
 
-        cv2.rectangle(frame, (rect_x, rect_y), (rect_x + rect_width, rect_y + rect_height), (0, 255, 0), 2)
-        create_bold_text("Player Move", 0.7, 2, rect_x, rect_y, (255, 255, 255), frame)
+        cv2.rectangle(frame, (player_rect_x, player_rect_y), (player_rect_x + rect_width, player_rect_y + rect_height), (0, 255, 0), 2)
+        create_bold_text("Player Move", 0.7, 2, player_rect_x, player_rect_y, (255, 255, 255), frame)
 
         # Computer move rectangle and text
-        rect_x, rect_y = int((width - rect_width) / 2) - 300, int((height - rect_height) / 2)  # Adjusted rect_x
+        computer_rect_x, computer_rect_y = int((width - rect_width) / 2) - 300, int((height - rect_height) / 2)
 
-        cv2.rectangle(frame, (rect_x, rect_y), (rect_x + rect_width, rect_y + rect_height), (0, 255, 0), 2)
-        create_bold_text("Computer Move", 0.7, 2, rect_x, rect_y, (255, 255, 255), frame)
-        # Round text
-        if round_number < rounds:
-            text = f"Press 'c' to lock in your move"
+        cv2.rectangle(frame, (computer_rect_x, computer_rect_y), (computer_rect_x + rect_width, computer_rect_y + rect_height), (0, 255, 0), 2)
+        create_bold_text("Computer Move", 0.7, 2, computer_rect_x, computer_rect_y, (255, 255, 255), frame)
+
+        # Player instructions text
+        if round_number <= rounds:
+            instructions_text = f"Press 'c' to lock in your move"
         else:
             # TODO Make this text announce the actual winner
-            text = f"DONE! Press 'ESC' to exit."
+            instructions_text = f"DONE! Press 'ESC' to exit."
 
-        text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
-        text_x = width - text_size[0] - 10
-        text_y = text_size[1] + 10
-        cv2.putText(frame, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
+        instructions_text_size, _ = cv2.getTextSize(instructions_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
+        instructions_text_x = width - instructions_text_size[0] - 10
+        instructions_text_y = instructions_text_size[1] + 10
+        cv2.putText(frame, instructions_text, (instructions_text_x, instructions_text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
 
-        text = f"Round {round_number} of {rounds}"
-        text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
-        text_x = 10
-        text_y = text_size[1] + 20
-        cv2.putText(frame, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
+        # Round number text
+        if round_number <= rounds:
+            round_n_text = f"Round {round_number} of {rounds}"
+        else:
+            round_n_text = f"Game finished"
 
+        round_n_text_size, _ = cv2.getTextSize(round_n_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
+        round_n_text_x = 10
+        round_n_text_y = round_n_text_size[1] + 20
+        cv2.putText(frame, round_n_text, (round_n_text_x, round_n_text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
+
+        # Await player input
         play_key = cv2.waitKey(1)
         if play_key == ord('c'):
+            # Start game
             if not game_started:
                 game_started = True
 
             # Player logic
-            if round_number < rounds:
+            if round_number <= rounds:
                 print("--------------------")
-                rect_x, rect_y = int((width - rect_width) / 2) + 300, int((height - rect_height) / 2)  # Adjusted rect_x
 
                 # Read player's move from rectangle
                 ret, frame = cap.read()
-                roi = frame[rect_y:rect_y + rect_height, rect_x:rect_x + rect_width]
+                roi = frame[player_rect_y:player_rect_y + rect_height, player_rect_x:player_rect_x + rect_width]
                 player_move = player_move_from_image(roi, "model.pth")
-
+                # TODO needs fixing
                 if player_move == "nothing":
                     player_move = "rock"
                 print(f"Player move: {player_move}")
                 # Put image in player move rectangle
 
-                round_number = round_number + 1 if round_number > 0 else round_number
+                round_number = round_number + 1
 
                 # Computer logic
                 computer_move = generate_computer_move()
@@ -183,24 +186,30 @@ def play():
                     pass
                 print("Round winner: ", winner)
 
-
-            else:
-                # Determine winner
-                game_finished = True
-
         # Put test text on screen
+        if round_number > rounds:
+            game_finished = True
+
         if game_started:
 
             computer_move_image = cv2.imread(f"images/{computer_move.lower()}.jpeg")
             computer_move_image = cv2.resize(computer_move_image, (300, 300))
-            rect_x, rect_y = int((width - rect_width) / 2) - 300, int((height - rect_height) / 2)
-            frame[rect_y:rect_y + rect_height, rect_x:rect_x + rect_width] = computer_move_image
 
-            text = f"Player: {player_score} | Computer: {computer_score}"
-            text_size, _ = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
-            text_x = int((width - text_size[0]) / 2)
-            text_y = text_size[1] + 20
-            cv2.putText(frame, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
+            frame[computer_rect_y:computer_rect_y + rect_height, computer_rect_x:computer_rect_x + rect_width] \
+                = computer_move_image
+
+            player_move_text = f"Predicted Player Move: {player_move}"
+            text_size, _ = cv2.getTextSize(player_move_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
+            text_x = player_rect_x + int((rect_width - text_size[0]) / 2)
+            text_y = player_rect_y + 325  # Adjust vertical position above the rectangle
+            cv2.putText(frame, player_move_text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv2.LINE_AA)
+
+            score_text = f"Player: {player_score} | Computer: {computer_score}"
+            text_size, _ = cv2.getTextSize(score_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
+            score_text_x = int((width - text_size[0]) / 2)
+            score_text_y = text_size[1] + 20
+            cv2.putText(frame, score_text, (score_text_x, score_text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
+
             if game_finished:
                 winner = determine_game_winner(player_score, computer_score)
                 text = f"Game winner: {winner}"
@@ -215,15 +224,11 @@ def play():
                 text_y = text_size[1] + 50
                 cv2.putText(frame, text, (text_x, text_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
 
-
-
-
         cv2.imshow("Rock Paper Scissors", frame)
         key = cv2.waitKey(1)
         if key == 27:
             print("Thanks for playing!")
             break
-
 
 
 play()
