@@ -14,7 +14,6 @@ parser.add_argument('--n_samples', type=int, default=100, help='Number of sample
 parser.add_argument('--n_collections', type=int, default=1, help="How many times to collect data for each class, "
                                                                  "runs 'collect_data' n_collections times "
                                                                  "useful for collecting data for multiple locations")
-
 args = parser.parse_args()
 
 number_collections = 1
@@ -114,17 +113,18 @@ print(f"Using {device} for training")
 
 data_dir = "data/"
 
-transform = transforms.Compose([
+model = torch.hub.load('pytorch/vision:v0.10.0', 'mobilenet_v2', pretrained=True)
+model.to(device)
+
+transforms = transforms.Compose([
     transforms.Resize(256),
     transforms.CenterCrop(224),
     transforms.ToTensor(),
-    transforms.Normalize(
-        mean=[0.485, 0.456, 0.406],  # Default values for ImageNet
-        std=[0.229, 0.224, 0.225]
-    )
+    transforms.Normalize([0.485, 0.456, 0.406],
+                         [0.229, 0.224, 0.225])
 ])
 
-dataset = datasets.ImageFolder(root=data_dir, transform=transform)
+dataset = datasets.ImageFolder(data_dir, transform=transforms)
 
 train_size = int(0.8 * len(dataset))
 test_size = len(dataset) - train_size
@@ -134,59 +134,59 @@ train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=32, shuffle=True)
 
-model = models.resnet18(pretrained=True)
-
-num_features = model.fc.in_features
-model.fc = nn.Linear(num_features, len(dataset.classes))
-
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
-
+model = torch.hub.load('pytorch/vision:v0.10.0', 'mobilenet_v2', pretrained=False)
 model.to(device)
-model.train()
 
-EPOCHS = 10
-for epoch in range(EPOCHS):
-    running_loss = 0.0
-    for i, data in enumerate(train_loader, 0):
-        inputs, labels = data
-        inputs, labels = inputs.to(device), labels.to(device)
+num_features = model.classifier[1].in_features
+model.classifier[1] = nn.Linear(num_features, 4)
 
-        optimizer.zero_grad()
-        outputs = model(inputs)
-        loss = criterion(outputs, labels)
+
+
+def train_loop(dataloader, model, loss_fn, optimizer):
+    model.to(device)
+    size = len(dataloader.dataset)
+    model.train()
+
+    for batch, (X, y) in enumerate(dataloader):
+        X, y = X.to(device), y.to(device)
+        pred = model(X)
+        loss = loss_fn(pred, y)
+
         loss.backward()
         optimizer.step()
-        running_loss += loss.item()
-        if i % 10 == 9:
-            print(f"[{epoch + 1}, {i + 1}] loss: {running_loss / 10}")
-            running_loss = 0.0
+        optimizer.zero_grad()
 
-torch.save(model.state_dict(), "model.pth")
-
-model = models.resnet18(pretrained=False)
-num_classes = len(dataset.classes)
-model.fc = nn.Linear(model.fc.in_features, num_classes)
-model.load_state_dict(torch.load("model.pth"))
-model.eval()
-
-correct = 0
-total = 0
-
-with torch.no_grad():
-    for data in test_loader:
-        inputs, labels = data
-        # inputs, labels = inputs.to(device), labels.to(device)
-
-        outputs = model(inputs)
-        _, predicted = torch.max(outputs.data, 1)
-        total += labels.size(0)
-        correct += (predicted == labels).sum().item()
-
-accuracy = 100 * correct / total
-print(f'Accuracy of the network on the test images: {accuracy:.2f}%')
+        if batch % 100 == 0:
+            loss, current = loss.item(), (batch + 1) * len(X)
+            print(f"loss: {loss:>7f} [{current:>5d}/{size:>5d}]")
 
 
+def test_loop(dataloader, model, loss_fn):
+    model.to(device)
+    model.eval()
+    size = len(dataloader.dataset)
+    num_batches = len(dataloader)
+    test_loss, correct = 0, 0
+
+    with torch.no_grad():
+        for X,y in dataloader:
+            X, y = X.to(device), y.to(device)
+            pred = model(X)
+            test_loss += loss_fn(pred, y).item()
+            correct += (pred.argmax(1) == y).type(torch.float).sum().item()
+
+    test_loss /= num_batches
+    correct /= size
+    print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
 
 
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+EPOCHS = 15
+for t in range(EPOCHS):
+    print(f"Epoch {t+1}\n-------------------------------")
+    train_loop(train_loader, model, criterion, optimizer)
+    test_loop(test_loader, model, criterion)
+print("Done!")
 
