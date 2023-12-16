@@ -14,6 +14,9 @@ parser.add_argument('--n_samples', type=int, default=100, help='Number of sample
 parser.add_argument('--n_collections', type=int, default=1, help="How many times to collect data for each class, "
                                                                  "runs 'collect_data' n_collections times "
                                                                  "useful for collecting data for multiple locations")
+parser.add_argument('--epochs', type=int, default=15, help="Number of epochs to train the model")
+parser.add_argument('--batch_size', type=int, default=32, help="Batch size for training")
+parser.add_argument('--lr', type=float, default=0.001, help="Learning rate for training")
 args = parser.parse_args()
 
 number_collections = 1
@@ -131,8 +134,8 @@ test_size = len(dataset) - train_size
 
 train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size, test_size])
 
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=32, shuffle=True)
+train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True)
 
 model = torch.hub.load('pytorch/vision:v0.10.0', 'mobilenet_v2', pretrained=False)
 model.to(device)
@@ -181,9 +184,9 @@ def test_loop(dataloader, model, loss_fn):
 
 
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
-EPOCHS = 15
+EPOCHS = args.epochs
 for t in range(EPOCHS):
     print(f"Epoch {t+1}\n-------------------------------")
     train_loop(train_loader, model, criterion, optimizer)

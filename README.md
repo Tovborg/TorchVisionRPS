@@ -28,7 +28,7 @@ when running the **train.py** file.
 - ``pip install -r requirements.txt``
 
 2. Run the **train.py** file to collect images for training the model
-- ARGUMENTS: ``--epochs`` (default=15), ``--batch_size`` (default=32), ``--lr`` (default=0.001), ``--n-samples`` (default=100), ``--n-collections`` (default=1)
+- ARGUMENTS: ``--epochs`` (default=15), ``--batch_size`` (default=32), ``--lr`` (default=0.001), ``--n_samples`` (default=100), ``--n_collections`` (default=1)
 - ``python train.py ``
 - And then just follow the instruction in the OpenCV window
 - The images will be saved in the **data** folder, with the class name as the folder name
