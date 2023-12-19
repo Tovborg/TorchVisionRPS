@@ -3,10 +3,18 @@ import numpy as np
 import random
 import torch
 import torch.nn
-from torchvision import models
-from PIL import Image
 from torchvision import transforms
 import time
+import torch.nn as nn
+import pretrainedmodels
+
+device = (
+    "cuda"
+    if torch.cuda.is_available()
+    else "mps"
+    if torch.backends.mps.is_available()
+    else "cpu"
+)
 
 rounds: int = int(input("Enter number of rounds: "))
 # Base case
@@ -20,13 +28,22 @@ def generate_computer_move() -> str:
     return random.choice(moves)
 
 
+from PIL import Image
+import torch
+import pretrainedmodels
+from torchvision import transforms
+
 def player_move_from_image(image, model_path) -> str:
     # Convert numpy array to PIL Image
     image = Image.fromarray(image)
-    model = models.resnet18(pretrained=False)
-    num_classes = 4
-    model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
-    model.load_state_dict(torch.load(model_path))
+
+    # Load the pre-trained NASNetMobile model
+    model_name = "nasnetamobile"
+    model = pretrainedmodels.__dict__[model_name](num_classes=1000, pretrained=None)  # Don't load pretrained weights here
+    num_ftrs = model.last_linear.in_features
+    model.last_linear = torch.nn.Linear(num_ftrs, 4)  # Adjust for 4 output classes
+    model.load_state_dict(torch.load(model_path))  # Load model state_dict
+
     model.eval()  # Set the model to evaluation mode
 
     # Transforms
@@ -35,9 +52,10 @@ def player_move_from_image(image, model_path) -> str:
         transforms.CenterCrop(224),
         transforms.ToTensor(),
         transforms.Normalize(
-            mean=[0.485, 0.456, 0.406],
-            std=[0.229, 0.224, 0.225]),
+            mean=[0.5, 0.5, 0.5],
+            std=[0.5, 0.5, 0.5]),
     ])
+
     # Apply transformations to the input image
     input_tensor = transform(image)
     input_batch = input_tensor.unsqueeze(0)  # Add a batch dimension
@@ -52,6 +70,9 @@ def player_move_from_image(image, model_path) -> str:
     predicted_label = class_labels[predicted_class]
 
     return predicted_label
+
+
+
 
 
 def determine_winner(move_computer, move_player) -> str:
@@ -73,6 +94,8 @@ def determine_winner(move_computer, move_player) -> str:
             return "player"
         elif move_player == "paper":
             return "computer"
+    elif move_player == "nothing":
+        return "computer"
     return "Error"
 
 
@@ -164,8 +187,8 @@ def play() -> None:
                 roi = frame[player_rect_y:player_rect_y + rect_height, player_rect_x:player_rect_x + rect_width]
                 player_move = player_move_from_image(roi, "model.pth")
                 # TODO needs fixing
-                if player_move == "nothing":
-                    player_move = "rock"
+                # if player_move == "nothing":
+                #     player_move = "rock"
                 print(f"Player move: {player_move}")
                 # Put image in player move rectangle
 

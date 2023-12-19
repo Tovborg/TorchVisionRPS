@@ -14,8 +14,8 @@ The **Nothing** class is used to train the model to not make a prediction when t
 when there's no hand in the rectangle.
 
 ## Architecture
-The model uses a pretrained *MobileNetV2* model as the backbone, and is then trained on the images collected from the **train.py** file. The model is trained
-using *SGD* as the optimizer, and *CrossEntropyLoss* as the loss function. The model is trained for a default of 15 epochs, but you can just give a different argument
+The model uses a pretrained *NASNetMobile* model as the backbone, and is then trained on the images collected from the **train.py** file. The model is trained
+using the *Adam* optimizer, and *CrossEntropyLoss* as the loss function. The model is trained for a default of 15 epochs, but you can just give a different argument
 when running the **train.py** file.
 
 <img src="images/architecture.png" width="500" alt="architecture for MobileNetV2" />
@@ -33,7 +33,8 @@ when running the **train.py** file.
 - And then just follow the instruction in the OpenCV window
 - The images will be saved in the **data** folder, with the class name as the folder name
 - Note: Remember to click escape when you're done collecting images to start training the model
-- Note: The more samples you collect, the better the model will be, and n-collections can help you collect samples in different locations and lighting
+- Note: The more samples you collect, the better the model will be, but training times will be longer, and n-collections can help you collect samples in different locations and lighting
+- Note: You can increase batch size to speed up training, but it will use more memory
 
 3. Run the **play.py** file to play the game
 - ``python play.py``

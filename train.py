@@ -9,6 +9,8 @@ from torch import optim
 from torchvision import models
 import argparse
 
+
+
 parser = argparse.ArgumentParser(description='Rock Paper Scissors argument parser')
 parser.add_argument('--n_samples', type=int, default=100, help='Number of samples to collect for each class')
 parser.add_argument('--n_collections', type=int, default=1, help="How many times to collect data for each class, "
@@ -116,15 +118,27 @@ print(f"Using {device} for training")
 
 data_dir = "data/"
 
-model = torch.hub.load('pytorch/vision:v0.10.0', 'mobilenet_v2', pretrained=True)
+import pretrainedmodels
+
+# This fixes an SSL error that happens when downloading the pretrained model
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
+
+model_name = "nasnetamobile"
+model = pretrainedmodels.__dict__[model_name](num_classes=1000, pretrained='imagenet')
+print(pretrainedmodels.pretrained_settings[model_name])
+
 model.to(device)
+
+num_features = model.last_linear.in_features
+model.last_linear = nn.Linear(num_features, 4)
 
 transforms = transforms.Compose([
     transforms.Resize(256),
     transforms.CenterCrop(224),
     transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406],
-                         [0.229, 0.224, 0.225])
+    transforms.Normalize([0.5, 0.5, 0.5],
+                         [0.5, 0.5, 0.5])
 ])
 
 dataset = datasets.ImageFolder(data_dir, transform=transforms)
@@ -136,13 +150,6 @@ train_dataset, test_dataset = torch.utils.data.random_split(dataset, [train_size
 
 train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True)
-
-model = torch.hub.load('pytorch/vision:v0.10.0', 'mobilenet_v2', pretrained=False)
-model.to(device)
-
-num_features = model.classifier[1].in_features
-model.classifier[1] = nn.Linear(num_features, 4)
-
 
 
 def train_loop(dataloader, model, loss_fn, optimizer):
@@ -191,5 +198,8 @@ for t in range(EPOCHS):
     print(f"Epoch {t+1}\n-------------------------------")
     train_loop(train_loader, model, criterion, optimizer)
     test_loop(test_loader, model, criterion)
+
+# Save the model
+torch.save(model.state_dict(), "model.pth")
 print("Done!")
 
